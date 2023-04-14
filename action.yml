@@ -1,0 +1,18 @@
+name: "S3 Archive Upload"
+description: "Archive and upload a file path to a designated S3 bucket."
+inputs:
+  bucket:
+    description: "An S3 bucket."
+    required: true
+  path:
+    description: "One or more file or directory paths to upload."
+    required: true
+  name:
+    description: "A name to give the archive."
+    required: true
+  prefix:
+    description: "Prefixed to the uploaded archive name."
+    required: false
+runs:
+  using: "node16"
+  main: "lib/main.js"
