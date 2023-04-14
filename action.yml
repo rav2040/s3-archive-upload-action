@@ -16,6 +16,7 @@ inputs:
   gzip:
     description: "Compress the archive using gzip."
     required: false
+    default: false
 runs:
   using: "node16"
   main: "lib/main.js"
