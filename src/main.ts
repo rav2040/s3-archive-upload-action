@@ -37,9 +37,16 @@ async function main() {
             },
         });
 
+        let currentProgressPart = 0;
+
         upload.on("httpUploadProgress", (progress) => {
-            console.log("progress.part", progress.part);
-            console.log("progress.loaded:", progress.loaded, "progress.total:", progress.total);
+            if (progress.part && progress.part > currentProgressPart) {
+                currentProgressPart = progress.part;
+
+                if (progress.loaded) {
+                    console.info("Still uploading...", Math.round(progress.loaded) / 1_000_000, "MB");
+                }
+            }
         });
 
         await upload.done();
