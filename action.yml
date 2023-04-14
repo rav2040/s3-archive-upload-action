@@ -4,14 +4,17 @@ inputs:
   bucket:
     description: "An S3 bucket."
     required: true
+  name:
+    description: "Name to give the S3 object key."
+    required: true
   path:
     description: "One or more file or directory paths to upload."
     required: true
-  name:
-    description: "A name to give the archive."
-    required: true
   prefix:
     description: "Prefixed to the uploaded archive name."
+    required: false
+  gzip:
+    description: "Compress the archive using gzip."
     required: false
 runs:
   using: "node16"

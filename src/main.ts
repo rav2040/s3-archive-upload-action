@@ -1,7 +1,7 @@
 import { posix } from "path";
 import { PassThrough } from "stream";
-import { getInput, getMultilineInput, setFailed } from "@actions/core";
-import { S3Client } from "@aws-sdk/client-s3";
+import { getBooleanInput, getInput, getMultilineInput, setFailed } from "@actions/core";
+import { S3Client, GetObjectAttributesCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { create } from "tar";
 import globby from "globby";
@@ -9,27 +9,29 @@ import globby from "globby";
 async function main() {
     try {
         const bucket = getInput("bucket", { required: true });
-        const path = getMultilineInput("path", { required: true });
         const name = getInput("name", { required: true });
+        const path = getMultilineInput("path", { required: true });
         const prefix = getInput("prefix");
+        const gzip = getBooleanInput("gzip");
 
-        const aggregatedPaths = (await Promise.all(path.map((path) => {
-            return globby(path, { onlyFiles: false, markDirectories: true });
-        }))).flat();
+        const paths = await globby(path, { onlyFiles: false, markDirectories: true });
 
         // Filter out directories that are common prefixes.
-        const files = Array.from(new Set(aggregatedPaths))
-            .filter((a, i, arr) => {
-                return a.at(-1) !== "/" || !arr.some((b, j) => i !== j && b.startsWith(a) && b.length > a.length)
-            });
+        const files = paths.filter((a, i, arr) => {
+            return a.at(-1) !== "/" || !arr.some((b, j) => i !== j && b.startsWith(a) && b.length > a.length)
+        });
 
-        const key = posix.join(prefix, name + ".tgz");
-        const stream = create({ gzip: true }, files).pipe(new PassThrough());
+        const stream = create({ gzip }, files).pipe(new PassThrough());
 
         console.info("Uploading...");
 
+        const interval = setInterval(() => console.info("Still uploading..."), 5000);
+
+        const s3 = new S3Client({});
+        const key = posix.join(prefix, name);
+
         const upload = new Upload({
-            client: new S3Client({}),
+            client: s3,
             params: {
                 Bucket: bucket,
                 Key: key,
@@ -37,21 +39,20 @@ async function main() {
             },
         });
 
-        let currentProgressPart = 0;
-
-        upload.on("httpUploadProgress", (progress) => {
-            if (progress.part && progress.part > currentProgressPart) {
-                currentProgressPart = progress.part;
-
-                if (progress.loaded) {
-                    console.info("Still uploading...", Math.round(progress.loaded) / 1_000_000, "MB");
-                }
-            }
-        });
-
         await upload.done();
 
-        console.info("Upload complete.")
+        const { ObjectSize: objectSize } = await s3.send(new GetObjectAttributesCommand({
+            Bucket: bucket,
+            Key: key,
+            ObjectAttributes: ["ObjectSize"],
+        }))
+
+        clearInterval(interval);
+        console.info("Upload complete.");
+
+        if (objectSize) {
+            console.info("Size of uploaded archive:", Math.round(objectSize / 1_000_000), "MB");
+        }
     } catch (err) {
         console.info("Upload failed.")
         if (err instanceof Error) setFailed(err);
