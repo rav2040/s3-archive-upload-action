@@ -51,7 +51,7 @@ async function main() {
         console.info("Upload complete.");
 
         if (objectSize) {
-            console.info("Size of uploaded archive:", Math.round(objectSize / 1_000_000), "MB");
+            console.info(`Size of uploaded archive: ${Intl.NumberFormat("en").format(objectSize)} bytes`);
         }
     } catch (err) {
         console.info("Upload failed.")
